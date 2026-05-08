@@ -57,6 +57,7 @@ class AppSettings {
   final String? translationModelSourceUrl;
   final String? translationSelectedModelId;
   final List<TranslationModelRecord> translationDownloadedModels;
+  final double fontScale;
 
   AppSettings({
     this.clearPathOnMaxRetry = false,
@@ -100,6 +101,7 @@ class AppSettings {
     this.translationModelSourceUrl,
     this.translationSelectedModelId,
     List<TranslationModelRecord>? translationDownloadedModels,
+    this.fontScale = 1.0,
   }) : batteryChemistryByDeviceId = batteryChemistryByDeviceId ?? {},
        batteryChemistryByRepeaterId = batteryChemistryByRepeaterId ?? {},
        mutedChannels = mutedChannels ?? {},
@@ -150,6 +152,7 @@ class AppSettings {
       'translation_downloaded_models': translationDownloadedModels
           .map((model) => model.toJson())
           .toList(),
+      'font_scale': fontScale,
     };
   }
 
@@ -237,6 +240,7 @@ class AppSettings {
               )
               .toList() ??
           const [],
+      fontScale: (json['font_scale'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
@@ -282,6 +286,7 @@ class AppSettings {
     Object? translationModelSourceUrl = _unset,
     Object? translationSelectedModelId = _unset,
     List<TranslationModelRecord>? translationDownloadedModels,
+    double? fontScale,
   }) {
     return AppSettings(
       clearPathOnMaxRetry: clearPathOnMaxRetry ?? this.clearPathOnMaxRetry,
@@ -345,6 +350,7 @@ class AppSettings {
           : translationSelectedModelId as String?,
       translationDownloadedModels:
           translationDownloadedModels ?? this.translationDownloadedModels,
+      fontScale: fontScale ?? this.fontScale,
     );
   }
 }

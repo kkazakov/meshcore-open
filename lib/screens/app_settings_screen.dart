@@ -8,6 +8,7 @@ import '../models/app_settings.dart';
 import '../models/translation_support.dart';
 import '../services/app_settings_service.dart';
 import '../services/notification_service.dart';
+import '../services/chat_text_scale_service.dart';
 import '../services/translation_service.dart';
 import '../widgets/adaptive_app_bar_title.dart';
 import '../helpers/snack_bar_builder.dart';
@@ -26,10 +27,11 @@ class AppSettingsScreen extends StatelessWidget {
       body: SafeArea(
         top: false,
         child:
-            Consumer3<
+            Consumer4<
               AppSettingsService,
               MeshCoreConnector,
-              TranslationService
+              TranslationService,
+              ChatTextScaleService
             >(
               builder:
                   (
@@ -37,12 +39,17 @@ class AppSettingsScreen extends StatelessWidget {
                     settingsService,
                     connector,
                     translationService,
+                    chatTextScaleService,
                     child,
                   ) {
                     return ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        _buildAppearanceCard(context, settingsService),
+                        _buildAppearanceCard(
+                          context,
+                          settingsService,
+                          chatTextScaleService,
+                        ),
                         const SizedBox(height: 16),
                         _buildNotificationsCard(context, settingsService),
                         const SizedBox(height: 16),
@@ -72,6 +79,7 @@ class AppSettingsScreen extends StatelessWidget {
   Widget _buildAppearanceCard(
     BuildContext context,
     AppSettingsService settingsService,
+    ChatTextScaleService chatTextScaleService,
   ) {
     return Card(
       child: Column(
@@ -105,6 +113,48 @@ class AppSettingsScreen extends StatelessWidget {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showLanguageDialog(context, settingsService),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.text_fields),
+            title: const Text('Font Scale'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${settingsService.settings.fontScale.toStringAsFixed(1)}x',
+                ),
+                Slider(
+                  value: settingsService.settings.fontScale,
+                  min: 0.8,
+                  max: 1.5,
+                  divisions: 7,
+                  label: '${settingsService.settings.fontScale.toStringAsFixed(1)}x',
+                  onChanged: (value) => settingsService.setFontScale(value),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline),
+            title: const Text('Messages Font Scale'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${chatTextScaleService.messageScale.toStringAsFixed(1)}x',
+                ),
+                Slider(
+                  value: chatTextScaleService.messageScale,
+                  min: 0.8,
+                  max: 2.0,
+                  divisions: 12,
+                  label: '${chatTextScaleService.messageScale.toStringAsFixed(1)}x',
+                  onChanged: (value) => chatTextScaleService.setScale(value),
+                ),
+              ],
+            ),
           ),
           const Divider(height: 1),
           SwitchListTile(

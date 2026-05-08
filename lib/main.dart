@@ -208,10 +208,19 @@ class MeshCoreApp extends StatelessWidget {
               settingsService.settings.themeMode,
             ),
             builder: (context, child) {
-              // Update notification service with resolved locale
               final locale = Localizations.localeOf(context);
               NotificationService().setLocale(locale);
-              return child ?? const SizedBox.shrink();
+              final fontScale = settingsService.settings.fontScale;
+              Widget result = child ?? const SizedBox.shrink();
+              if (fontScale != 1.0) {
+                result = MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(fontScale),
+                  ),
+                  child: result,
+                );
+              }
+              return result;
             },
             home: (PlatformInfo.isWeb && !PlatformInfo.isChrome)
                 ? const ChromeRequiredScreen()

@@ -32,11 +32,11 @@ class _ChatZoomWrapperState extends State<ChatZoomWrapper> {
       },
       onScaleStart: (details) {
         if (details.pointerCount != 2) return;
-        _startScale = service.scale;
+        _startScale = service.messageScale;
       },
       onScaleUpdate: (details) {
         if (details.pointerCount != 2) return;
-        final baseScale = _startScale ?? service.scale;
+        final baseScale = _startScale ?? service.messageScale;
         service.setScale(baseScale * details.scale);
       },
       onScaleEnd: (_) {
