@@ -253,4 +253,9 @@ class AppSettingsService extends ChangeNotifier {
       _settings.copyWith(translationDownloadedModels: value),
     );
   }
+
+  Future<void> setFontScale(double value) async {
+    final clamped = value.clamp(0.8, 1.5);
+    await updateSettings(_settings.copyWith(fontScale: clamped));
+  }
 }

@@ -327,7 +327,7 @@ class _ChannelChatScreenState extends State<ChannelChatScreen> {
                                 builder: (context) {
                                   final textScale = context
                                       .select<ChatTextScaleService, double>(
-                                        (service) => service.scale,
+                                        (service) => service.messageScale,
                                       );
                                   return _buildMessageBubble(
                                     message,
@@ -1014,7 +1014,7 @@ class _ChannelChatScreenState extends State<ChannelChatScreen> {
           Builder(
             builder: (context) {
               final textScale = context.select<ChatTextScaleService, double>(
-                (service) => service.scale,
+                (service) => service.messageScale,
               );
               return _buildReplyBanner(textScale);
             },

@@ -471,7 +471,7 @@ class _ChatScreenState extends State<ChatScreen> {
           return Builder(
             builder: (context) {
               final textScale = context.select<ChatTextScaleService, double>(
-                (service) => service.scale,
+                (service) => service.messageScale,
               );
               final resolvedContact = _resolveContact(connector);
               final bubble = _MessageBubble(
