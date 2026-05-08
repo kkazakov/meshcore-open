@@ -70,7 +70,7 @@ class AppSettings {
     this.mapKeyPrefix = '',
     this.mapShowMarkers = true,
     this.mapShowGuessedLocations = true,
-    this.enableMessageTracing = false,
+    this.enableMessageTracing = true,
     this.mapCacheBounds,
     this.mapCacheMinZoom = 10,
     this.mapCacheMaxZoom = 15,
@@ -177,7 +177,7 @@ class AppSettings {
       mapShowMarkers: json['map_show_markers'] as bool? ?? true,
       mapShowGuessedLocations:
           json['map_show_guessed_locations'] as bool? ?? true,
-      enableMessageTracing: json['enable_message_tracing'] as bool? ?? false,
+      enableMessageTracing: json['enable_message_tracing'] as bool? ?? true,
       mapCacheBounds: (json['map_cache_bounds'] as Map?)?.map(
         (key, value) => MapEntry(key.toString(), (value as num).toDouble()),
       ),
