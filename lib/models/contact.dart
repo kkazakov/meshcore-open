@@ -165,11 +165,13 @@ class Contact {
 
       final type = reader.readByte();
       final flags = reader.readByte();
-      final pathLen = reader.readByte();
-      final safePathLen = pathLen > 0
-          ? (pathLen > maxPathSize ? maxPathSize : pathLen)
-          : 0;
-      final pathBytes = reader.readBytes(maxPathSize).sublist(0, safePathLen);
+      final pathLenRaw = reader.readByte();
+      final (:hopCount, :hashByteWidth) = decodePathLenByte(pathLenRaw);
+      final byteLen = hopCount * hashByteWidth;
+      final isFlood =
+          pathLenRaw == 0xFF || hashByteWidth > 3 || byteLen > maxPathSize;
+      final safeByteLen = isFlood ? 0 : byteLen;
+      final pathBytes = reader.readBytes(maxPathSize).sublist(0, safeByteLen);
       final name = reader.readCStringGreedy(maxNameSize);
 
       // Guard: reject contacts with non-printable names (corrupt flash data)
@@ -213,7 +215,7 @@ class Contact {
         name: name.isEmpty ? 'Unknown' : name,
         type: type,
         flags: flags,
-        pathLength: (pathLen == 0xFF || pathLen > maxPathSize) ? -1 : pathLen,
+        pathLength: isFlood ? -1 : hopCount,
         path: pathBytes,
         latitude: lat,
         longitude: lon,

@@ -159,19 +159,22 @@ class ChannelMessage {
       int channelIdx;
       if (code == respCodeChannelMsgRecvV3) {
         reader.skipBytes(1); // Skip SNR
-        final flags = reader.readByte();
-        final hasPath = (flags & 0x01) != 0;
+        reader.skipBytes(1); // Skip flags byte
         reader.skipBytes(1); // Skip reserved byte
         channelIdx = reader.readByte();
-        pathLen = reader.readInt8();
+        final pathLenRaw = reader.readByte();
+        final pathInfo = decodePathLenByte(pathLenRaw);
+        pathLen = pathLenRaw == 0xFF || pathInfo.hashByteWidth > 3
+            ? 0
+            : pathInfo.hopCount;
         txtType = reader.readByte();
-        if (hasPath && pathLen > 0) {
-          reader.rewind(); // Rewind to read path length again for pathBytes
-          pathBytes = reader.readBytes(pathLen);
-        }
       } else {
         channelIdx = reader.readByte();
-        pathLen = reader.readInt8();
+        final pathLenRaw = reader.readByte();
+        final pathInfo = decodePathLenByte(pathLenRaw);
+        pathLen = pathLenRaw == 0xFF || pathInfo.hashByteWidth > 3
+            ? 0
+            : pathInfo.hopCount;
         txtType = reader.readByte();
       }
       final timestampRaw = reader.readUInt32LE();

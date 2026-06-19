@@ -11,17 +11,20 @@ import '../models/contact.dart';
 class PathEditorSheet extends StatefulWidget {
   final List<Contact> availableContacts;
   final List<int> initialPath;
+  final int hashByteWidth;
 
   const PathEditorSheet({
     super.key,
     required this.availableContacts,
     this.initialPath = const [],
+    this.hashByteWidth = pathHashSize,
   });
 
   static Future<Uint8List?> show(
     BuildContext context, {
     required List<Contact> availableContacts,
     List<int> initialPath = const [],
+    int hashByteWidth = pathHashSize,
   }) {
     return showModalBottomSheet<Uint8List>(
       context: context,
@@ -36,6 +39,7 @@ class PathEditorSheet extends StatefulWidget {
           child: PathEditorSheet(
             availableContacts: availableContacts,
             initialPath: initialPath,
+            hashByteWidth: hashByteWidth,
           ),
         ),
       ),
@@ -48,13 +52,13 @@ class PathEditorSheet extends StatefulWidget {
 
 class _Hop {
   final int id;
-  final int byte;
+  final Uint8List prefix;
 
-  const _Hop(this.id, this.byte);
+  const _Hop(this.id, this.prefix);
 }
 
 class _PathEditorSheetState extends State<PathEditorSheet> {
-  static const int _maxHops = 64;
+  late final int _maxHops;
 
   final List<_Hop> _hops = [];
   final _hexController = TextEditingController();
@@ -66,8 +70,12 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
   @override
   void initState() {
     super.initState();
-    for (final byte in widget.initialPath) {
-      _hops.add(_Hop(_nextHopId++, byte));
+    final w = widget.hashByteWidth.clamp(1, pubKeySize);
+    _maxHops = maxPathSize ~/ w;
+    for (var i = 0; i + w <= widget.initialPath.length; i += w) {
+      _hops.add(
+        _Hop(_nextHopId++, Uint8List.fromList(widget.initialPath.sublist(i, i + w))),
+      );
     }
     _syncHexFromHops();
   }
@@ -90,9 +98,11 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
 
   void _syncHexFromHops() {
     _syncingHex = true;
-    _hexController.text = PathHelper.formatPathHex(
-      _hops.map((h) => h.byte).toList(),
-    );
+    final bytes = <int>[];
+    for (final hop in _hops) {
+      bytes.addAll(hop.prefix);
+    }
+    _hexController.text = PathHelper.formatPathHex(bytes);
     _syncingHex = false;
     _hexError = null;
   }
@@ -100,12 +110,14 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
   void _onHexChanged(String text) {
     if (_syncingHex) return;
     final l10n = context.l10n;
+    final w = widget.hashByteWidth.clamp(1, pubKeySize);
+    final tokenLen = w * 2;
     final tokens = text
         .split(RegExp(r'[,\s]+'))
         .where((t) => t.isNotEmpty)
         .toList();
     final invalid = tokens
-        .where((t) => t.length != 2 || int.tryParse(t, radix: 16) == null)
+        .where((t) => t.length != tokenLen || int.tryParse(t, radix: 16) == null)
         .toList();
     setState(() {
       if (invalid.isNotEmpty) {
@@ -120,7 +132,13 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
       _hops
         ..clear()
         ..addAll(
-          tokens.map((t) => _Hop(_nextHopId++, int.parse(t, radix: 16))),
+          tokens.map((t) {
+            final bytes = <int>[];
+            for (var i = 0; i < t.length; i += 2) {
+              bytes.add(int.parse(t.substring(i, i + 2), radix: 16));
+            }
+            return _Hop(_nextHopId++, Uint8List.fromList(bytes));
+          }),
         );
     });
   }
@@ -128,7 +146,13 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
   void _addHop(Contact contact) {
     if (_hops.length >= _maxHops) return;
     setState(() {
-      _hops.add(_Hop(_nextHopId++, contact.publicKey.first));
+      final w = widget.hashByteWidth.clamp(1, pubKeySize);
+      _hops.add(
+        _Hop(
+          _nextHopId++,
+          Uint8List.fromList(contact.publicKey.sublist(0, w)),
+        ),
+      );
       _syncHexFromHops();
     });
   }
@@ -149,18 +173,19 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
   }
 
   void _save() {
-    Navigator.pop(
-      context,
-      Uint8List.fromList(_hops.map((h) => h.byte).toList()),
-    );
+    final bytes = <int>[];
+    for (final hop in _hops) {
+      bytes.addAll(hop.prefix);
+    }
+    Navigator.pop(context, Uint8List.fromList(bytes));
   }
 
   Widget _hopTile(BuildContext context, int index) {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final hop = _hops[index];
-    final hex = PathHelper.hopHex(hop.byte);
-    final name = PathHelper.hopName(hop.byte, widget.availableContacts);
+    final hex = PathHelper.hopHex(hop.prefix);
+    final name = PathHelper.hopName(hop.prefix, widget.availableContacts);
 
     return ListTile(
       key: ValueKey(hop.id),
@@ -224,7 +249,7 @@ class _PathEditorSheetState extends State<PathEditorSheet> {
       ),
       title: Text(contact.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${contact.typeLabel(l10n)} • ${PathHelper.hopHex(contact.publicKey.first)}',
+        '${contact.typeLabel(l10n)} • ${PathHelper.hopHex(contact.publicKey.sublist(0, widget.hashByteWidth.clamp(1, pubKeySize)))}',
       ),
       trailing: const Icon(Icons.add_circle_outline),
       onTap: full ? null : () => _addHop(contact),

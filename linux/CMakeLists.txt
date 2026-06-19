@@ -75,11 +75,21 @@ set_target_properties(${BINARY_NAME}
 include(flutter/generated_plugins.cmake)
 
 # Work around tinycthread/glibc 2.43+ conflict: glibc 2.43 (with Clang 21's
-# C23 default) exports once_flag from stdlib.h bt tinycthread in flserial
-# defines once_flag as a preprocessor macro, causing a typedef clash.
-# __STDC_NO_THREADS__ suppresses the C23 once_flag declaration in glibc stdlib.h.
+# C23 default) exports once_flag/call_once from stdlib.h but tinycthread in
+# flserial defines them as preprocessor macros, causing a typedef clash.
+# tinycthread only needs _DEFAULT_SOURCE, not _GNU_SOURCE; the latter enables
+# glibc's ISOC23 extensions and triggers the conflict.
+set(_flserial_tinycthread
+  "${CMAKE_CURRENT_SOURCE_DIR}/flutter/ephemeral/.plugin_symlinks/flserial/src/native_libs/include/tinycthread.h")
+if(EXISTS ${_flserial_tinycthread})
+  file(READ ${_flserial_tinycthread} _tinycthread_content)
+  string(REPLACE "#define _GNU_SOURCE" "#define _DEFAULT_SOURCE"
+    _tinycthread_content "${_tinycthread_content}")
+  file(WRITE ${_flserial_tinycthread} "${_tinycthread_content}")
+endif()
 if(TARGET flserial)
   target_compile_definitions(flserial PRIVATE __STDC_NO_THREADS__)
+  set_property(TARGET flserial PROPERTY C_STANDARD 11)
 endif()
 
 

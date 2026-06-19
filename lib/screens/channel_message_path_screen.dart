@@ -8,6 +8,7 @@ import 'package:meshcore_open/screens/path_trace_map.dart';
 import 'package:provider/provider.dart';
 
 import '../connector/meshcore_connector.dart';
+import '../connector/meshcore_protocol.dart';
 import '../helpers/path_hop_resolver.dart';
 import '../services/map_tile_cache_service.dart';
 import '../services/app_settings_service.dart';
@@ -1443,11 +1444,11 @@ class _ChannelMessagePathMapScreenState
       cardHeight = max(176.0, min(maxHeight, estimatedHeight));
     }
 
-    final hopUseCount = <int, int>{};
+    final hopUseCount = <String, int>{};
     if (combined) {
       for (final entry in entries) {
         if (_hiddenPathIds.contains(entry.display.id)) continue;
-        for (final prefix in entry.hops.map((h) => h.prefix).toSet()) {
+        for (final prefix in entry.hops.map((h) => _formatPrefix(h.prefix)).toSet()) {
           hopUseCount.update(prefix, (v) => v + 1, ifAbsent: () => 1);
         }
       }
@@ -1605,7 +1606,7 @@ class _ChannelMessagePathMapScreenState
   Widget _buildHopListView(
     List<_PathHop> hops,
     DisplayPath? selectedDisplay,
-    Map<int, int> hopUseCount,
+    Map<String, int> hopUseCount,
   ) {
     final l10n = context.l10n;
     if (hops.isEmpty) {
@@ -1630,7 +1631,7 @@ class _ChannelMessagePathMapScreenState
           itemBuilder: (context, index) {
             final hop = hops[index];
             final isFocused = _focusedHopIndex == hop.index;
-            final sharedCount = hopUseCount[hop.prefix] ?? 0;
+            final sharedCount = hopUseCount[_formatPrefix(hop.prefix)] ?? 0;
             return InkWell(
               onTap: hop.hasLocation ? () => _onHopTapped(hop) : null,
               child: Container(
@@ -1734,7 +1735,7 @@ class _SharedNode {
 
 class _PathHop {
   final int index;
-  final int prefix;
+  final Uint8List prefix;
   final Contact? contact;
   final LatLng? position;
   final AppLocalizations l10n;
@@ -1771,23 +1772,26 @@ List<_PathHop> _buildPathHops(
   if (pathBytes.isEmpty) return const [];
   final endpoint =
       (connector.selfLatitude != null && connector.selfLongitude != null)
-      ? LatLng(connector.selfLatitude!, connector.selfLongitude!)
-      : null;
+          ? LatLng(connector.selfLatitude!, connector.selfLongitude!)
+          : null;
+  final w = connector.pathHashByteWidth.clamp(1, pubKeySize);
   final resolvedContacts = PathHopResolver.resolve(
     pathBytes: pathBytes,
     contacts: connector.allContacts,
     endpoint: endpoint,
     resolveFromEnd: resolveFromEnd,
+    hashByteWidth: w,
   );
 
   final hops = <_PathHop>[];
-  for (var i = 0; i < pathBytes.length; i++) {
+  for (var i = 0; i < resolvedContacts.length; i++) {
     final contact = resolvedContacts[i];
     final resolvedPosition = _resolvePosition(contact);
+    final offset = i * w;
     hops.add(
       _PathHop(
         index: i + 1,
-        prefix: pathBytes[i],
+        prefix: pathBytes.sublist(offset, offset + w),
         contact: contact,
         position: resolvedPosition,
         l10n: l10n,
@@ -1806,8 +1810,10 @@ LatLng? _resolvePosition(Contact? contact) {
   return LatLng(latitude, longitude);
 }
 
-String _formatPrefix(int prefix) {
-  return prefix.toRadixString(16).padLeft(2, '0').toUpperCase();
+String _formatPrefix(Uint8List prefix) {
+  return prefix
+      .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+      .join();
 }
 
 String _formatPathPrefixes(Uint8List pathBytes) {

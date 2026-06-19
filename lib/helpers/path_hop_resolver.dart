@@ -11,30 +11,34 @@ class PathHopResolver {
     required List<Contact> contacts,
     LatLng? endpoint,
     bool resolveFromEnd = false,
+    int hashByteWidth = pathHashSize,
   }) {
-    final candidatesByPrefix = <int, List<Contact>>{};
+    final w = hashByteWidth.clamp(1, pubKeySize);
+    final candidatesByPrefix = <String, List<Contact>>{};
     for (final contact in contacts) {
-      if (contact.publicKey.isEmpty) continue;
+      if (contact.publicKey.length < w) continue;
       if (contact.type != advTypeRepeater && contact.type != advTypeRoom) {
         continue;
       }
-      candidatesByPrefix
-          .putIfAbsent(contact.publicKey.first, () => <Contact>[])
-          .add(contact);
+      final key = contact.publicKey.sublist(0, w).join(',');
+      candidatesByPrefix.putIfAbsent(key, () => <Contact>[]).add(contact);
     }
     for (final candidates in candidatesByPrefix.values) {
       candidates.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
     }
 
-    final resolved = List<Contact?>.filled(pathBytes.length, null);
+    final hopCount = pathBytes.length ~/ w;
+    final resolved = List<Contact?>.filled(hopCount, null);
     final indexes = resolveFromEnd
-        ? List<int>.generate(pathBytes.length, (i) => pathBytes.length - 1 - i)
-        : List<int>.generate(pathBytes.length, (i) => i);
+        ? List<int>.generate(hopCount, (i) => hopCount - 1 - i)
+        : List<int>.generate(hopCount, (i) => i);
     final distance = Distance();
     var previousPosition = endpoint;
 
     for (final index in indexes) {
-      final candidates = candidatesByPrefix[pathBytes[index]];
+      final offset = index * w;
+      final key = pathBytes.sublist(offset, offset + w).join(',');
+      final candidates = candidatesByPrefix[key];
       if (candidates == null || candidates.isEmpty) continue;
 
       var bestIndex = 0;

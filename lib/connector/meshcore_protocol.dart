@@ -327,6 +327,29 @@ const int pathHashSize = 1;
 const int maxNameSize = 32;
 const int maxFrameSize = 172;
 const int appProtocolVersion = 4;
+
+int decodePathByteLen(int pathLenRaw) {
+  final hashCount = pathLenRaw & 63;
+  final hashSize = ((pathLenRaw >> 6) & 0x03) + 1;
+  return hashCount * hashSize;
+}
+
+({int hopCount, int hashByteWidth}) decodePathLenByte(int pathLenRaw) {
+  final hopCount = pathLenRaw & 63;
+  final hashByteWidth = ((pathLenRaw >> 6) & 0x03) + 1;
+  return (hopCount: hopCount, hashByteWidth: hashByteWidth);
+}
+
+int encodePathLenByte(int hopCount, int hashByteWidth) {
+  final w = hashByteWidth.clamp(1, 3);
+  return (hopCount.clamp(0, 63) & 63) | ((w - 1) << 6);
+}
+
+bool isValidEncodedPathLen(int pathLenRaw) {
+  final hashByteWidth = ((pathLenRaw >> 6) & 0x03) + 1;
+  if (hashByteWidth == 4) return false;
+  return decodePathByteLen(pathLenRaw) <= maxPathSize;
+}
 // Matches firmware MAX_TEXT_LEN (10 * CIPHER_BLOCK_SIZE).
 const int maxTextPayloadBytes = 160;
 const int _sendTextMsgOverheadBytes =
@@ -704,10 +727,12 @@ Uint8List buildResetPathFrame(Uint8List pubKey) {
 
 // Build CMD_ADD_UPDATE_CONTACT frame to set custom path
 // Format: [cmd][pub_key x32][type][flags][path_len][path x64][name x32][Lat? x4, Lon? x4][timestamp? x4]
+// pathLen is the hop count; pathLen byte is encoded with hashByteWidth.
 Uint8List buildUpdateContactPathFrame(
   Uint8List pubKey,
   Uint8List path,
   int pathLen, {
+  required int hashByteWidth,
   int type = 1, // ADV_TYPE_CHAT
   int flags = 0,
   String name = '',
@@ -720,7 +745,7 @@ Uint8List buildUpdateContactPathFrame(
   writer.writeBytes(pubKey);
   writer.writeByte(type);
   writer.writeByte(flags);
-  writer.writeByte(pathLen);
+  writer.writeByte(encodePathLenByte(pathLen, hashByteWidth));
 
   writer.writeBytesPadded(path, maxPathSize);
 

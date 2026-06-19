@@ -3065,6 +3065,7 @@ class MeshCoreConnector extends ChangeNotifier {
           contact.publicKey,
           customPath,
           pathLen,
+          hashByteWidth: _pathHashByteWidth,
           type: contact.type,
           flags: contact.flags,
           name: contact.name,
@@ -3080,7 +3081,7 @@ class MeshCoreConnector extends ChangeNotifier {
       );
       if (idx != -1) {
         _contacts[idx] = _contacts[idx].copyWith(
-          pathLength: customPath.length,
+          pathLength: pathLen,
           path: customPath,
         );
         notifyListeners();
@@ -3126,6 +3127,7 @@ class MeshCoreConnector extends ChangeNotifier {
         latestContact.publicKey,
         latestContact.path,
         latestContact.pathLength,
+        hashByteWidth: _pathHashByteWidth,
         type: latestContact.type,
         flags: updatedFlags,
         name: latestContact.name,
@@ -3472,6 +3474,7 @@ class MeshCoreConnector extends ChangeNotifier {
         contact.publicKey,
         contact.path,
         contact.pathLength,
+        hashByteWidth: _pathHashByteWidth,
         type: contact.type,
         flags: contact.flags,
         name: contact.name,
@@ -4927,7 +4930,12 @@ class MeshCoreConnector extends ChangeNotifier {
       }
 
       final senderPrefix = reader.readBytes(6);
-      final pathLength = reader.readByte();
+      final pathLenRaw = reader.readByte();
+      final pathInfo = decodePathLenByte(pathLenRaw);
+      final pathLength =
+          pathLenRaw == 0xFF || pathInfo.hashByteWidth > 3
+              ? 0
+              : pathInfo.hopCount;
       final txtType = reader.readByte();
       final timestampRaw = reader.readUInt32LE();
       final timestamp = DateTime.fromMillisecondsSinceEpoch(
@@ -4986,7 +4994,7 @@ class MeshCoreConnector extends ChangeNotifier {
         isOutgoing: false,
         isCli: isCli,
         status: MessageStatus.delivered,
-        pathLength: pathLength == 0xFF ? 0 : pathLength,
+        pathLength: pathLength,
         pathBytes: Uint8List(0),
         fourByteRoomContactKey: roomAuthorPrefix,
       );
@@ -5890,7 +5898,7 @@ class MeshCoreConnector extends ChangeNotifier {
         reader.skipBytes(4);
       }
       final pathLenRaw = reader.readByte();
-      final pathByteLen = _decodePathByteLen(pathLenRaw);
+      final pathByteLen = decodePathByteLen(pathLenRaw);
       final pathBytes = reader.readBytes(pathByteLen);
       final payload = reader.readBytes(reader.remaining);
 
@@ -6454,7 +6462,7 @@ class MeshCoreConnector extends ChangeNotifier {
       }
       //final payloadVer = (header >> 6) & 0x03;
       final pathLenRaw = packet.readByte();
-      final pathByteLen = _decodePathByteLen(pathLenRaw);
+      final pathByteLen = decodePathByteLen(pathLenRaw);
       final pathBytes = packet.readBytes(pathByteLen);
       final payload = packet.readBytes(packet.remaining);
 
@@ -6781,13 +6789,6 @@ const int _routeTransportDirect = 0x03;
 const int _payloadTypeGroupText = 0x05;
 const int _cipherMacSize = 2;
 
-/// Decodes the firmware's encoded path_len byte into actual byte length.
-/// Bits 0-5: hash count (0-63), Bits 6-7: hash size code (0=1byte, 1=2bytes, 2=3bytes).
-int _decodePathByteLen(int pathLenRaw) {
-  final hashCount = pathLenRaw & 63;
-  final hashSize = ((pathLenRaw >> 6) & 0x03) + 1;
-  return hashCount * hashSize;
-}
 
 class _RawPacket {
   final int header;

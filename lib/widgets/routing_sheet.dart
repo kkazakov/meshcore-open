@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../connector/meshcore_connector.dart';
+import '../connector/meshcore_protocol.dart';
 import '../helpers/path_helper.dart';
 import '../l10n/l10n.dart';
 import '../models/contact.dart';
@@ -102,15 +103,17 @@ class _RoutingSheetBodyState extends State<_RoutingSheetBody> {
     final available = connector.allContacts
         .where((c) => c.publicKeyHex != contact.publicKeyHex)
         .toList();
+    final w = connector.pathHashByteWidth.clamp(1, pubKeySize);
     final result = await PathEditorSheet.show(
       context,
       availableContacts: available,
       initialPath: initial,
+      hashByteWidth: w,
     );
     if (result == null || !mounted) return;
     await connector.setPathOverride(
       contact,
-      pathLen: result.length,
+      pathLen: result.length ~/ w,
       pathBytes: result,
     );
     await _verifyPath(connector, contact, result);
@@ -122,9 +125,10 @@ class _RoutingSheetBodyState extends State<_RoutingSheetBody> {
     PathRecord record,
   ) async {
     final bytes = Uint8List.fromList(record.pathBytes);
+    final w = connector.pathHashByteWidth.clamp(1, pubKeySize);
     await connector.setPathOverride(
       contact,
-      pathLen: bytes.length,
+      pathLen: bytes.length ~/ w,
       pathBytes: bytes,
     );
     await _verifyPath(connector, contact, bytes);
@@ -228,14 +232,22 @@ class _RoutingSheetBodyState extends State<_RoutingSheetBody> {
       case _RoutingMode.manual:
         final bytes = contact.pathOverrideBytes ?? Uint8List(0);
         if (bytes.isEmpty) return l10n.routing_directNoHops;
-        return PathHelper.resolvePathNames(bytes, connector.allContacts);
+        return PathHelper.resolvePathNames(
+          bytes,
+          connector.allContacts,
+          hashByteWidth: connector.pathHashByteWidth,
+        );
       case _RoutingMode.auto:
         if (contact.pathLength < 0) return l10n.routing_noPathYet;
         if (contact.pathLength == 0) return l10n.routing_directNoHops;
         if (contact.path.isEmpty) {
           return l10n.chat_hopsCount(contact.pathLength);
         }
-        return PathHelper.resolvePathNames(contact.path, connector.allContacts);
+        return PathHelper.resolvePathNames(
+          contact.path,
+          connector.allContacts,
+          hashByteWidth: connector.pathHashByteWidth,
+        );
     }
   }
 
@@ -278,6 +290,7 @@ class _RoutingSheetBodyState extends State<_RoutingSheetBody> {
     final resolvedNames = PathHelper.resolvePathNames(
       pathBytes,
       connector.allContacts,
+      hashByteWidth: connector.pathHashByteWidth,
     );
 
     showDialog(
@@ -520,7 +533,11 @@ class _RoutingSheetBodyState extends State<_RoutingSheetBody> {
                 listEquals(record.pathBytes, contact.path)));
 
     final title = hasBytes
-        ? PathHelper.resolvePathNames(record.pathBytes, connector.allContacts)
+        ? PathHelper.resolvePathNames(
+            record.pathBytes,
+            connector.allContacts,
+            hashByteWidth: connector.pathHashByteWidth,
+          )
         : l10n.chat_hopsCount(record.hopCount);
 
     final line1 =

@@ -53,11 +53,11 @@ void main() {
       expect(contact!.pathLength, equals(1));
     });
 
-    test('pathLen == 64 (maxPathSize) → pathLength == 64', () {
-      final frame = _buildContactFrame(pathLen: maxPathSize);
+    test('pathLen encodes max hops for width=1 → pathLength == 63', () {
+      final frame = _buildContactFrame(pathLen: 0x3F);
       final contact = Contact.fromFrame(frame);
       expect(contact, isNotNull);
-      expect(contact!.pathLength, equals(maxPathSize));
+      expect(contact!.pathLength, equals(63));
     });
 
     test('pathLen == 0xFF → pathLength == -1 (flood)', () {
@@ -67,11 +67,18 @@ void main() {
       expect(contact!.pathLength, equals(-1));
     });
 
-    test('pathLen == 65 (over maxPathSize) → pathLength == -1 (flood)', () {
-      final frame = _buildContactFrame(pathLen: 65);
+    test('encoded pathLen with byteLen > maxPathSize → pathLength == -1', () {
+      final frame = _buildContactFrame(pathLen: 0x61);
       final contact = Contact.fromFrame(frame);
       expect(contact, isNotNull);
       expect(contact!.pathLength, equals(-1));
+    });
+
+    test('pathLen encodes width=2 hops → pathLength == hopCount', () {
+      final frame = _buildContactFrame(pathLen: 0x42);
+      final contact = Contact.fromFrame(frame);
+      expect(contact, isNotNull);
+      expect(contact!.pathLength, equals(2));
     });
   });
 

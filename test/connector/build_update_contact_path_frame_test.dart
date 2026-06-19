@@ -22,10 +22,9 @@ void main() {
         pubKey,
         path,
         path.length,
-        name: 'Alice',
+        hashByteWidth: 1,
       );
 
-      // Should be exactly the base frame, no optional tail.
       expect(frame.length, baseFrameLength);
     });
 
@@ -34,6 +33,7 @@ void main() {
         pubKey,
         path,
         path.length,
+        hashByteWidth: 1,
         lat: 49.123456,
         lon: -123.123456,
       );
@@ -48,6 +48,7 @@ void main() {
           pubKey,
           path,
           path.length,
+          hashByteWidth: 1,
           lat: 49.0,
           lon: -123.0,
           lastModified: DateTime.utc(2026, 1, 2, 3, 4, 5),
@@ -63,14 +64,12 @@ void main() {
         pubKey,
         path,
         path.length,
+        hashByteWidth: 1,
         lastModified: DateTime.utc(2026, 1, 2, 3, 4, 5),
       );
 
-      // 8 zero bytes for lat/lon + 4 bytes timestamp
       expect(frame.length, baseFrameLength + 8 + 4);
 
-      // Verify the lat/lon slot is actually zero — guards against a
-      // regression where the function writes garbage into those bytes.
       final tailStart = baseFrameLength;
       for (var i = tailStart; i < tailStart + 8; i++) {
         expect(frame[i], 0, reason: 'byte $i in lat/lon slot must be 0');
@@ -82,6 +81,7 @@ void main() {
         pubKey,
         path,
         path.length,
+        hashByteWidth: 1,
         lat: 49.123456,
         lon: -123.123456,
       );

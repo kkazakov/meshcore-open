@@ -1,0 +1,11 @@
+--- /home/wasp/.pub-cache/git/flserial-48216310061efc8d5d217cc18014fc2cb501646e/src/native_libs/include/tinycthread.h	2026-04-14 06:22:58.395612207 +0300
++++ /tmp/opencode/flserial_src/native_libs/include/tinycthread.h	2026-06-19 19:31:42.981004184 +0300
+@@ -66,7 +66,7 @@
+ #if defined(_TTHREAD_POSIX_)
+   #undef _FEATURES_H
+   #if !defined(_GNU_SOURCE)
+-    #define _GNU_SOURCE
++    #define _DEFAULT_SOURCE
+   #endif
+   #if !defined(_POSIX_C_SOURCE) || ((_POSIX_C_SOURCE - 0) < 199309L)
+     #undef _POSIX_C_SOURCE
